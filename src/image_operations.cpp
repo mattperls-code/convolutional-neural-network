@@ -180,16 +180,14 @@ Matrix ImageOperations::resize(const Matrix& image, const Shape& newSize)
 
     Matrix output(newSize);
 
-    auto rScalar = (float) image.rowCount() / newSize.rows;
-    auto cScalar = (float) image.colCount() / newSize.cols;
+    auto rScalar = (float) (image.rowCount() - 1) / (newSize.rows - 1);
+    auto cScalar = (float) (image.colCount() - 1) / (newSize.cols - 1);
 
     for (int r = 0;r<output.rowCount();r++) {
-        auto imageR = r * rScalar;
-        if (imageR >= image.rowCount()) imageR = image.rowCount() - 1;
+        auto imageR = round(rScalar * r);
 
         for (int c = 0;c<output.colCount();c++) {
-            auto imageC = c * cScalar;
-            if (imageC >= image.colCount()) imageC = image.colCount() - 1;
+            auto imageC = round(cScalar * c);
 
             output.set(r, c, image.get(imageR, imageC));
         }
@@ -198,12 +196,12 @@ Matrix ImageOperations::resize(const Matrix& image, const Shape& newSize)
     return output;
 };
 
-Matrix ImageOperations::crop(const Matrix& image, int x, int y, const Shape& cropWindow, float replaceValue)
+Matrix ImageOperations::crop(const Matrix& image, int x, int y, const Shape& cropWindow, float fillValue)
 {
     if (image.empty()) throw std::runtime_error("ImageOperations crop: image is empty");
     if (cropWindow.rows == 0 || cropWindow.cols == 0) throw std::runtime_error("ImageOperations crop: cropWindow is empty");
 
-    Matrix output(cropWindow, replaceValue);
+    Matrix output(cropWindow, fillValue);
 
     for (int r = 0;r<cropWindow.rows;r++) {
         auto imageR = r + y;
@@ -222,11 +220,11 @@ Matrix ImageOperations::crop(const Matrix& image, int x, int y, const Shape& cro
     return output;
 };
 
-Matrix ImageOperations::translate(const Matrix& image, int x, int y, float replaceValue)
+Matrix ImageOperations::translate(const Matrix& image, int x, int y, float fillValue)
 {
     if (image.empty()) throw std::runtime_error("ImageOperations translate: image is empty");
     
-    Matrix output(image.shape(), replaceValue);
+    Matrix output(image.shape(), fillValue);
 
     for (int r = 0;r<output.rowCount();r++) {
         int imageR = r - y;
@@ -245,25 +243,25 @@ Matrix ImageOperations::translate(const Matrix& image, int x, int y, float repla
     return output;
 };
 
-Matrix ImageOperations::rotate(const Matrix& image, int theta, float replaceValue)
+Matrix ImageOperations::rotate(const Matrix& image, float theta, float fillValue)
 {
     if (image.empty()) throw std::runtime_error("ImageOperations rotate: image is empty");
 
-    Matrix output(image.shape(), replaceValue);
+    Matrix output(image.shape(), fillValue);
 
     auto cosTheta = cos(theta);
     auto sinTheta = sin(theta);
 
     for (int r = 0;r<output.rowCount();r++) {
         for (int c = 0;c<output.colCount();c++) {
-            auto deltaX = c - 0.5 * output.colCount();
-            auto deltaY = r - 0.5 * output.rowCount();
+            auto deltaX = c + 0.5 - 0.5 * output.colCount();
+            auto deltaY = r + 0.5 - 0.5 * output.rowCount();
 
             auto rotatedX = deltaX * cosTheta - deltaY * sinTheta;
             auto rotatedY = deltaX * sinTheta + deltaY * cosTheta;
 
-            auto imageR = round(rotatedY + 0.5 * output.rowCount());
-            auto imageC = round(rotatedX + 0.5 * output.colCount());
+            auto imageR = round(rotatedY - 0.5 + 0.5 * output.rowCount());
+            auto imageC = round(rotatedX - 0.5 + 0.5 * output.colCount());
 
             if (imageR >= 0 && imageC >= 0 && imageR < image.rowCount() && imageC < image.colCount()) output.set(r, c, image.get(imageR, imageC));
         }

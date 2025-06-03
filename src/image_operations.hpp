@@ -17,9 +17,9 @@ class ImageOperations
         static Matrix avgPool(const Matrix& image, const Shape& window, int stride);
         
         static Matrix resize(const Matrix& image, const Shape& newSize);
-        static Matrix crop(const Matrix& image, int x, int y, const Shape& newSize, float replaceValue);
-        static Matrix translate(const Matrix& image, int x, int y, float replaceValue);
-        static Matrix rotate(const Matrix& image, int theta, float replaceValue);
+        static Matrix crop(const Matrix& image, int x, int y, const Shape& newSize, float fillValue);
+        static Matrix translate(const Matrix& image, int x, int y, float fillValue);
+        static Matrix rotate(const Matrix& image, float theta, float fillValue);
 };
 
 #endif
