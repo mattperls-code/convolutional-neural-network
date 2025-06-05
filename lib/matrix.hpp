@@ -8,20 +8,24 @@
 class Shape
 {
     public:
-        int rows;
-        int cols;
+        int rows = 0;
+        int cols = 0;
 
         Shape() = default;
         Shape(int rows, int cols): rows(rows), cols(cols) {};
 
         bool operator==(const Shape&) const = default;
+
+        int area() const;
+
+        std::string toString() const;
 };
 
 class Matrix
 {
     private:
-        int rows;
-        int cols;
+        int rows = 0;
+        int cols = 0;
         std::vector<float> data;
 
     public:
@@ -47,12 +51,14 @@ class Matrix
         std::string toString() const;
 
         static Matrix transpose(const Matrix& mat);
+        static Matrix flipped(const Matrix& mat);
         static Matrix add(const Matrix& matA, const Matrix& matB);
         static Matrix subtract(const Matrix& matA, const Matrix& matB);
         static Matrix scalarProduct(const Matrix& mat, float scalar);
         static Matrix hadamardProduct(const Matrix& matA, const Matrix& matB);
         static Matrix matrixProduct(const Matrix& matA, const Matrix& matB);
         static Matrix matrixColumnProduct(const Matrix& mat, const Matrix& col);
+        static Matrix upsample(const Matrix& mat, int gapSize);
 };
 
 #endif

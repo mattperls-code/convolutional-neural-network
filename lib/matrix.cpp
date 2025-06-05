@@ -3,6 +3,16 @@
 #include <stdexcept>
 #include <format>
 
+int Shape::area() const
+{
+    return this->rows * this->cols;
+};
+
+std::string Shape::toString() const
+{
+    return std::to_string(this->rows) + " by " + std::to_string(this->cols);
+};
+
 Matrix::Matrix(const Shape& shape)
 {
     this->rows = shape.rows;
@@ -119,7 +129,8 @@ std::string Matrix::toString() const
     return output;
 };
 
-Matrix Matrix::transpose(const Matrix& mat) {
+Matrix Matrix::transpose(const Matrix& mat)
+{
     Matrix output(Shape(mat.cols, mat.rows));
 
     for (int r = 0;r<mat.rows;r++) for (int c = 0;c<mat.cols;c++) output.set(c, r, mat.get(r, c));
@@ -127,48 +138,62 @@ Matrix Matrix::transpose(const Matrix& mat) {
     return output;
 }
 
-Matrix Matrix::add(const Matrix& matA, const Matrix& matB) {
+Matrix Matrix::flipped(const Matrix& mat)
+{
+    Matrix output = mat;
+
+    std::reverse(output.dangerouslyGetData().begin(), output.dangerouslyGetData().end());
+
+    return output;
+};
+
+Matrix Matrix::add(const Matrix& matA, const Matrix& matB)
+{
     if (matA.rows != matB.rows) throw std::runtime_error("Matrix add: rowA != rowB");
     if (matA.cols != matB.cols) throw std::runtime_error("Matrix add: colA != colB");
 
-    Matrix output(Shape(matA.rows, matA.cols));
+    Matrix output(matA.shape());
 
     for (int i = 0;i<matA.data.size();i++) output.data[i] = matA.data[i] + matB.data[i];
 
     return output;
 }
 
-Matrix Matrix::subtract(const Matrix& matA, const Matrix& matB) {
+Matrix Matrix::subtract(const Matrix& matA, const Matrix& matB)
+{
     if (matA.rows != matB.rows) throw std::runtime_error("Matrix subtract: rowA != rowB");
     if (matA.cols != matB.cols) throw std::runtime_error("Matrix subtract: colA != colB");
 
-    Matrix output(Shape(matA.rows, matA.cols));
+    Matrix output(matA.shape());
 
     for (int i = 0;i<matA.data.size();i++) output.data[i] = matA.data[i] - matB.data[i];
 
     return output;
 }
 
-Matrix Matrix::scalarProduct(const Matrix& mat, float scalar) {
-    Matrix output(Shape(mat.rows, mat.cols));
+Matrix Matrix::scalarProduct(const Matrix& mat, float scalar)
+{
+    Matrix output(mat.shape());
 
     for (int i = 0;i<mat.data.size();i++) output.data[i] = mat.data[i] * scalar;
 
     return output;
 }
 
-Matrix Matrix::hadamardProduct(const Matrix& matA, const Matrix& matB) {
+Matrix Matrix::hadamardProduct(const Matrix& matA, const Matrix& matB)
+{
     if (matA.rows != matB.rows) throw std::runtime_error("Matrix hadarmardProduct: rowA != rowB");
     if (matA.cols != matB.cols) throw std::runtime_error("Matrix hadarmardProduct: colA != colB");
 
-    Matrix output(Shape(matA.rows, matA.cols));
+    Matrix output(matA.shape());
 
     for (int i = 0;i<matA.data.size();i++) output.data[i] = matA.data[i] * matB.data[i];
 
     return output;
 }
 
-Matrix Matrix::matrixProduct(const Matrix& matA, const Matrix& matB) {
+Matrix Matrix::matrixProduct(const Matrix& matA, const Matrix& matB)
+{
     if (matA.cols != matB.rows) throw std::runtime_error("Matrix matrixProduct: colA != rowB");
 
     Matrix output(Shape(matA.rows, matB.cols));
@@ -186,7 +211,8 @@ Matrix Matrix::matrixProduct(const Matrix& matA, const Matrix& matB) {
     return output;
 }
 
-Matrix Matrix::matrixColumnProduct(const Matrix& mat, const Matrix& col) {
+Matrix Matrix::matrixColumnProduct(const Matrix& mat, const Matrix& col)
+{
     if (col.cols != 1) throw std::runtime_error("Matrix matrixColumnProduct: col is not a column vector");
     if (mat.cols != col.rows) throw std::runtime_error("Matrix matrixColumnProduct: colMat != rowCol");
 
@@ -202,3 +228,19 @@ Matrix Matrix::matrixColumnProduct(const Matrix& mat, const Matrix& col) {
     
     return output;
 }
+
+Matrix Matrix::upsample(const Matrix& mat, int gap)
+{
+    Matrix output(Shape(
+        1 + (mat.rowCount() - 1) * (gap + 1),
+        1 + (mat.colCount() - 1) * (gap + 1)
+    ));
+
+    for (int r = 0;r<mat.rows;r++) {
+        for (int c = 0;c<mat.cols;c++) {
+            output.set(r * (gap + 1), c * (gap + 1), mat.get(r, c));
+        }
+    }
+
+    return output;
+};

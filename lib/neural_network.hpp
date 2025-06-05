@@ -132,6 +132,7 @@ class NetworkLossPartials
         Matrix inputLayerLossPartials;
         std::vector<HiddenLayerLossPartials> hiddenLayersLossPartials;
 
+        NetworkLossPartials() = default;
         NetworkLossPartials(const Matrix& inputLayerLossPartials, const std::vector<HiddenLayerLossPartials>& hiddenLayersLossPartials): inputLayerLossPartials(inputLayerLossPartials), hiddenLayersLossPartials(hiddenLayersLossPartials) {};
 
         void add(const NetworkLossPartials& other);
@@ -162,9 +163,9 @@ class NeuralNetwork
 
         // should only be called after feed forward has run
         void calculateHiddenLayerLossPartials(int hiddenLayerIndex, const Matrix& dLossWrtActivated);
-        NetworkLossPartials calculateNetworkLossPartials(const Matrix& expectedOutput);
     
     public:
+        NeuralNetwork() = default;
         NeuralNetwork(int inputLayerNodeCount, std::vector<HiddenLayerParameters> hiddenLayerParameters, NormalizationFunction outputNormalizationFunction, LossFunction lossFunction);
 
         int getInputLayerNodeCount();
@@ -180,11 +181,18 @@ class NeuralNetwork
 
         float calculateLoss(const Matrix& input, const Matrix& expectedOutput);
 
-        NetworkLossPartials train(DataPoint trainingDataPoint, float learningRate);
+        // should only be called after feed forward has run
+        NetworkLossPartials calculateLossPartials(const Matrix& expectedOutput);
+        
+        NetworkLossPartials calculateLossPartials(DataPoint dataPoint);
+        NetworkLossPartials calculateBatchLossPartials(std::vector<DataPoint> dataBatch);
 
+        void applyLossPartials(NetworkLossPartials lossPartial);
+
+        void train(DataPoint trainingDataPoint, float learningRate);
         void batchTrain(std::vector<DataPoint> trainingDataBatch, float learningRate);
 
-        std::string toString();
+        std::string toString() const;
 };
 
 #endif

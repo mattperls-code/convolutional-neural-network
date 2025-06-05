@@ -6,12 +6,17 @@
 class Dimensions
 {
     public:
-        int depth;
+        int depth = 0;
         Shape shape;
 
+        Dimensions() = default;
         Dimensions(int depth, const Shape& shape): depth(depth), shape(shape) {};
 
         bool operator==(const Dimensions&) const = default;
+
+        int volume() const;
+
+        std::string toString() const;
 };
 
 class Tensor
@@ -34,8 +39,16 @@ class Tensor
         void set(int row, int col, int depth, float value);
 
         std::vector<Matrix>& dangerouslyGetData();
+        
+        Matrix getMatrix(int depth) const;
+        Matrix getColumnVector() const;
 
         std::string toString() const;
+
+        static Tensor fromColumnVector(Matrix& columnVector, const Dimensions& tensorDimensions);
+
+        static Tensor add(const Tensor& tensorA, const Tensor& tensorB);
+        static Tensor scalarProduct(const Tensor& tensor, float scalar);
 };
 
 #endif
