@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "convolutional_neural_network.hpp"
 
 // feature layer loss partials
@@ -314,17 +312,20 @@ void PoolLayerParameters::runFeedforward(const Tensor& input, FeatureLayerState*
 
     auto poolLayerState = static_cast<PoolLayerState*>(state);
 
+    poolLayerState->input = input;
+
     auto inputDepth = input.getDimensions().depth;
     
     std::vector<Matrix> paddedInputMatrices(inputDepth);
 
     for (int i = 0;i<inputDepth;i++) paddedInputMatrices[i] = ImageOperations::pad(input.getMatrix(i), this->padding);
 
+    poolLayerState->paddedInput = Tensor(paddedInputMatrices);
+
     std::vector<Matrix> poolOutput(inputDepth);
 
-    for (int i = 0;i<inputDepth;i++) poolOutput[i] = this->poolOperation(input.getMatrix(i), this->window, this->stride);
+    for (int i = 0;i<inputDepth;i++) poolOutput[i] = this->poolOperation(paddedInputMatrices[i], this->window, this->stride);
 
-    poolLayerState->input = input;
     poolLayerState->output = Tensor(poolOutput);
 };
 
@@ -338,14 +339,14 @@ void PoolLayerParameters::calculateLossPartials(const Tensor& dLossWrtOutput, Fe
     poolLayerState->dLossWrtInput = Tensor(poolLayerState->input.getDimensions());
 
     for (int channel = 0;channel<poolLayerState->input.getDimensions().depth;channel++) {
-        auto inputMatrix = poolLayerState->input.getMatrix(channel);
+        auto paddedInputMatrix = poolLayerState->paddedInput.getMatrix(channel);
         auto dLossWrtOutputChannel = poolLayerState->dLossWrtOutput.getMatrix(channel);
 
         auto& dLossWrtInputChannel = poolLayerState->dLossWrtInput.dangerouslyGetData()[channel];
 
         for (int outputR = 0;outputR<dLossWrtOutputChannel.rowCount();outputR++) {
             for (int outputC = 0;outputC<dLossWrtOutputChannel.colCount();outputC++) {
-                auto dLossWrtOutputPixel = dLossWrtInputChannel.get(outputR, outputC);
+                auto dLossWrtOutputPixel = dLossWrtOutputChannel.get(outputR, outputC);
 
                 auto windowStartInputRow = outputR * this->stride;
                 auto windowStartInputCol = outputC * this->stride;
@@ -353,13 +354,13 @@ void PoolLayerParameters::calculateLossPartials(const Tensor& dLossWrtOutput, Fe
                 if (this->mode == MIN) {
                     auto minWindowRow = windowStartInputRow;
                     auto minWindowCol = windowStartInputCol;
-                    auto minWindowValue = inputMatrix.get(minWindowRow, minWindowCol);
+                    auto minWindowValue = paddedInputMatrix.get(minWindowRow, minWindowCol);
 
                     for (int windowR = 0;windowR<this->window.rows;windowR++) {
                         for (int windowC = 0;windowC<this->window.cols;windowC++) {
                             auto inputRow = windowStartInputRow + windowR;
                             auto inputCol = windowStartInputCol + windowC;
-                            auto inputValue = inputMatrix.get(inputRow, inputCol);
+                            auto inputValue = paddedInputMatrix.get(inputRow, inputCol);
 
                             if (inputValue < minWindowValue) {
                                 minWindowRow = inputRow;
@@ -369,18 +370,23 @@ void PoolLayerParameters::calculateLossPartials(const Tensor& dLossWrtOutput, Fe
                         }
                     }
 
-                    dLossWrtInputChannel.set(minWindowRow, minWindowCol, dLossWrtInputChannel.get(minWindowRow, minWindowCol) + dLossWrtOutputPixel);
+                    int unpaddedRow = minWindowRow - this->padding;
+                    int unpaddedCol = minWindowCol - this->padding;
+
+                    if (unpaddedRow >= 0 && unpaddedCol >= 0 && unpaddedRow < dLossWrtInputChannel.rowCount() && unpaddedCol < dLossWrtInputChannel.colCount()) {
+                        dLossWrtInputChannel.set(unpaddedRow, unpaddedCol, dLossWrtInputChannel.get(unpaddedRow, unpaddedCol) + dLossWrtOutputPixel);
+                    }
                 }
-                if (this->mode == MAX) {
+                else if (this->mode == MAX) {
                     auto maxWindowRow = windowStartInputRow;
                     auto maxWindowCol = windowStartInputCol;
-                    auto maxWindowValue = inputMatrix.get(maxWindowRow, maxWindowCol);
+                    auto maxWindowValue = paddedInputMatrix.get(maxWindowRow, maxWindowCol);
 
                     for (int windowR = 0;windowR<this->window.rows;windowR++) {
                         for (int windowC = 0;windowC<this->window.cols;windowC++) {
                             auto inputRow = windowStartInputRow + windowR;
                             auto inputCol = windowStartInputCol + windowC;
-                            auto inputValue = inputMatrix.get(inputRow, inputCol);
+                            auto inputValue = paddedInputMatrix.get(inputRow, inputCol);
 
                             if (inputValue > maxWindowValue) {
                                 maxWindowRow = inputRow;
@@ -390,17 +396,24 @@ void PoolLayerParameters::calculateLossPartials(const Tensor& dLossWrtOutput, Fe
                         }
                     }
 
-                    dLossWrtInputChannel.set(maxWindowRow, maxWindowCol, dLossWrtInputChannel.get(maxWindowRow, maxWindowCol) + dLossWrtOutputPixel);
+                    int unpaddedRow = maxWindowRow - this->padding;
+                    int unpaddedCol = maxWindowCol - this->padding;
+                    
+                    if (unpaddedRow >= 0 && unpaddedCol >= 0 && unpaddedRow < dLossWrtInputChannel.rowCount() && unpaddedCol < dLossWrtInputChannel.colCount()) {
+                        dLossWrtInputChannel.set(unpaddedRow, unpaddedCol, dLossWrtInputChannel.get(unpaddedRow, unpaddedCol) + dLossWrtOutputPixel);
+                    }
                 }
                 else if (this->mode == AVG) {
                     auto dLossWrtWindowPixel = dLossWrtOutputPixel / this->window.area();
 
                     for (int windowR = 0;windowR<this->window.rows;windowR++) {
                         for (int windowC = 0;windowC<this->window.cols;windowC++) {
-                            auto inputRow = windowStartInputRow + windowR;
-                            auto inputCol = windowStartInputCol + windowC;
-                            
-                            dLossWrtInputChannel.set(inputRow, inputCol, dLossWrtInputChannel.get(inputRow, inputCol) + dLossWrtWindowPixel);
+                            auto inputRow = windowStartInputRow + windowR - this->padding;
+                            auto inputCol = windowStartInputCol + windowC - this->padding;
+
+                            if (inputRow >= 0 && inputCol >= 0 && inputRow < dLossWrtInputChannel.rowCount() && inputCol < dLossWrtInputChannel.colCount()) {
+                                dLossWrtInputChannel.set(inputRow, inputCol, dLossWrtInputChannel.get(inputRow, inputCol) + dLossWrtWindowPixel);
+                            }
                         }
                     }
                 }

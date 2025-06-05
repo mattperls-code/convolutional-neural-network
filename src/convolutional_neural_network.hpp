@@ -1,7 +1,6 @@
 #ifndef CONVOLUTIONAL_NEURAL_NETWORK_HPP
 #define CONVOLUTIONAL_NEURAL_NETWORK_HPP
 
-#include <variant>
 #include <memory>
 
 #include "../lib/neural_network.hpp"
@@ -101,6 +100,8 @@ class ConvolutionLayerState : public FeatureLayerState
 class PoolLayerState : public FeatureLayerState
 {
     public:
+        Tensor paddedInput;
+
         PoolLayerState(): FeatureLayerState(POOL) {};
 
         FeatureLayerLossPartials* getLossPartials() const override;

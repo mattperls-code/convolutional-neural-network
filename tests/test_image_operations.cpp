@@ -3,24 +3,7 @@
 
 #include "../src/image_operations.hpp"
 
-bool matricesAreApproxEqual(const Matrix& matA, const Matrix& matB, float margin)
-{
-    if (matA.shape() != matB.shape()) {
-        std::cout << "matA: " << matA.toString() << std::endl;
-        std::cout << "matB: " << matB.toString() << std::endl;
-
-        return false;
-    };
-    
-    for (int r = 0;r<matA.rowCount();r++) for (int c = 0;c<matA.colCount();c++) if (matA.get(r, c) != Catch::Approx(matB.get(r, c)).margin(margin)) {
-        std::cout << "matA: " << matA.toString() << std::endl;
-        std::cout << "matB: " << matB.toString() << std::endl;
-
-        return false;
-    };
-
-    return true;
-};
+#include "util.hpp"
 
 TEST_CASE("IMAGE OPERATIONS") {
     SECTION("PAD") {
