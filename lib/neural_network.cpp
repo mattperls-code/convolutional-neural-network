@@ -380,12 +380,12 @@ LossFunction NeuralNetwork::getLossFunction()
     return this->lossFunction;
 };
 
-void NeuralNetwork::initializeRandomLayerParameters()
+void NeuralNetwork::initializeRandomHiddenLayerParameters()
 {
-    this->initializeRandomLayerParameters(HiddenLayerParameters::defaultMinInitialWeight, HiddenLayerParameters::defaultMaxInitialWeight, HiddenLayerParameters::defaultMinInitialBias, HiddenLayerParameters::defaultMaxInitialBias);
+    this->initializeRandomHiddenLayerParameters(HiddenLayerParameters::defaultMinInitialWeight, HiddenLayerParameters::defaultMaxInitialWeight, HiddenLayerParameters::defaultMinInitialBias, HiddenLayerParameters::defaultMaxInitialBias);
 };
 
-void NeuralNetwork::initializeRandomLayerParameters(float minInitialWeight, float maxInitialWeight, float minInitialBias, float maxInitialBias)
+void NeuralNetwork::initializeRandomHiddenLayerParameters(float minInitialWeight, float maxInitialWeight, float minInitialBias, float maxInitialBias)
 {
     std::random_device rd;
     std::mt19937 rng(rd());

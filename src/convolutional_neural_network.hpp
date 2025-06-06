@@ -118,7 +118,7 @@ class ActivationLayerState : public FeatureLayerState
         std::vector<float> dLossWrtBias;
         std::vector<float> dLossWrtWeights;
 
-        ActivationLayerState(): FeatureLayerState(POOL) {};
+        ActivationLayerState(): FeatureLayerState(ACTIVATION) {};
 
         FeatureLayerLossPartials* getLossPartials() const override;
 
@@ -260,7 +260,7 @@ class ConvolutionalNeuralNetwork
         NeuralNetwork neuralNetwork;
 
     public:
-        ConvolutionalNeuralNetwork(const Dimensions& inputLayerDimensions, std::vector<FeatureLayerParameters*> featureLayerParameters, std::vector<HiddenLayerParameters> hiddenLayerParameters, NormalizationFunction outputNormalizationFunction, LossFunction lossFunction);
+        ConvolutionalNeuralNetwork(const Dimensions& inputLayerDimensions, std::vector<FeatureLayerParameters*> featureLayersParameters, std::vector<HiddenLayerParameters> hiddenLayerParameters, NormalizationFunction outputNormalizationFunction, LossFunction lossFunction);
 
         Dimensions getInputLayerDimensions();
         const std::vector<std::unique_ptr<FeatureLayerState>>& getFeatureLayerStates();
@@ -268,13 +268,16 @@ class ConvolutionalNeuralNetwork
         NeuralNetwork getNeuralNetwork();
         Matrix getNormalizedOutput();
 
-        void initializeRandomLayerParameters();
-        void initializeRandomLayerParameters(float minInitialWeight, float maxInitialWeight, float minInitialBias, float maxInitialBias);
+        void initializeRandomHiddenLayerParameters();
+        void initializeRandomHiddenLayerParameters(float minInitialWeight, float maxInitialWeight, float minInitialBias, float maxInitialBias);
+
+        void initializeRandomFeatureLayerParameters();
 
         Matrix calculateFeedForwardOutput(const Tensor& input);
 
         float calculateLoss(const Tensor& input, const Matrix& expectedOutput);
 
+        ConvolutionalNetworkLossPartials calculateLossPartials(NetworkLossPartials neuralNetworkLossPartials);
         ConvolutionalNetworkLossPartials calculateLossPartials(TensorDataPoint dataPoint);
         ConvolutionalNetworkLossPartials calculateBatchLossPartials(std::vector<TensorDataPoint> dataBatch);
 

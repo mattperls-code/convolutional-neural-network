@@ -216,25 +216,31 @@ void ConvolutionLayerParameters::calculateLossPartials(const Tensor& dLossWrtOut
         auto inputMatrix = convolutionLayerState->paddedInput.getMatrix(inputChannel);
 
         for (int outputChannel = 0;outputChannel<outputDepth;outputChannel++) {
-            auto dLossWrtOutputChannel = convolutionLayerState->dLossWrtOutput.getMatrix(outputChannel);
+            auto upsampledDLossWrtOutputChannel = Matrix::upsample(convolutionLayerState->dLossWrtOutput.getMatrix(outputChannel), this->stride - 1);
             
-            convolutionLayerState->dLossWrtKernels[outputChannel].dangerouslyGetData()[inputChannel] = ImageOperations::convolution(inputMatrix, dLossWrtOutputChannel, 1);
+            convolutionLayerState->dLossWrtKernels[outputChannel].dangerouslyGetData()[inputChannel] = ImageOperations::convolution(inputMatrix, upsampledDLossWrtOutputChannel, 1);
 
             auto kernel = this->kernels[outputChannel].getMatrix(inputChannel);
 
             convolutionLayerState->dLossWrtInput.dangerouslyGetData()[inputChannel] = Matrix::add(
                 convolutionLayerState->dLossWrtInput.getMatrix(inputChannel),
-                ImageOperations::convolution(
-                    ImageOperations::pad(
-                        Matrix::upsample(dLossWrtOutputChannel, this->stride - 1),
-                        0.0,
-                        kernel.colCount() - 1,
-                        kernel.colCount() - 1,
-                        kernel.rowCount() - 1,
-                        kernel.rowCount() - 1
+                ImageOperations::crop(
+                    ImageOperations::convolution(
+                        ImageOperations::pad(
+                            upsampledDLossWrtOutputChannel,
+                            0.0,
+                            kernel.colCount() - 1,
+                            kernel.colCount() - 1,
+                            kernel.rowCount() - 1,
+                            kernel.rowCount() - 1
+                        ),
+                        Matrix::flipped(kernel),
+                        1
                     ),
-                    Matrix::flipped(kernel),
-                    1
+                    this->padding,
+                    this->padding,
+                    convolutionLayerState->input.getDimensions().shape,
+                    0.0
                 )
             );
         }
@@ -432,6 +438,7 @@ std::string PoolLayerParameters::toString() const
 {
     std::string output;
 
+    output += "\t\twindow: " + this->window.toString() + "\n";
     output += "\t\tstride: " + std::to_string(this->stride) + "\n";
     output += "\t\tpadding: " + std::to_string(this->padding) + "\n";
     output += "\t\tmode: " + std::to_string(this->mode) + "\n";
@@ -520,6 +527,7 @@ void ActivationLayerParameters::calculateLossPartials(const Tensor& dLossWrtOutp
 
     for (int channel = 0;channel<inputDepth;channel++) {
         auto dLossWrtOutputChannel = activationLayerState->dLossWrtOutput.getMatrix(channel);
+
         auto& dLossWrtWeightedAndBiasedChannel = activationLayerState->dLossWrtWeightedAndBiased.dangerouslyGetData()[channel];
 
         auto weightedAndBiasedMatrix = activationLayerState->weightedAndBiased.getMatrix(channel);
@@ -605,17 +613,30 @@ void ConvolutionalNetworkLossPartials::scalarMultiply(float scalar)
 
 // convolutional neural network
 
-ConvolutionalNeuralNetwork::ConvolutionalNeuralNetwork(const Dimensions& inputLayerDimensions, std::vector<FeatureLayerParameters*> featureLayerParameters, std::vector<HiddenLayerParameters> hiddenLayerParameters, NormalizationFunction outputNormalizationFunction, LossFunction lossFunction)
+ConvolutionalNeuralNetwork::ConvolutionalNeuralNetwork(const Dimensions& inputLayerDimensions, std::vector<FeatureLayerParameters*> featureLayersParameters, std::vector<HiddenLayerParameters> hiddenLayerParameters, NormalizationFunction outputNormalizationFunction, LossFunction lossFunction)
 {
     this->inputLayerDimensions = inputLayerDimensions;
 
-    if (featureLayerParameters.empty()) throw std::runtime_error("ConvolutionalNeuralNetwork constructor: featureLayerParameters is empty");
+    if (featureLayersParameters.empty()) throw std::runtime_error("ConvolutionalNeuralNetwork constructor: featureLayerParameters is empty");
 
     auto featureLayersOutputDimensions = inputLayerDimensions;
     
-    for (auto featureLayerParameters : featureLayerParameters) {
+    for (auto featureLayerParameters : featureLayersParameters) {
         this->featureLayerParameters.emplace_back(featureLayerParameters);
-        this->featureLayerStates.emplace_back(nullptr);
+        
+        switch (featureLayerParameters->type) {
+            case CONVOLUTION:
+                this->featureLayerStates.emplace_back(new ConvolutionLayerState());
+                break;
+            case POOL:
+                this->featureLayerStates.emplace_back(new PoolLayerState());
+                break;
+            case ACTIVATION:
+                this->featureLayerStates.emplace_back(new ActivationLayerState());
+                break;
+            default:
+                throw std::runtime_error("ConvolutionalNeuralNetwork constructor: unhandled featureLayerParameters type");
+        }
 
         featureLayersOutputDimensions = featureLayerParameters->getOutputDimensions(featureLayersOutputDimensions);
     }
@@ -653,12 +674,17 @@ Matrix ConvolutionalNeuralNetwork::getNormalizedOutput()
     return this->neuralNetwork.getNormalizedOutput();
 };
 
-void ConvolutionalNeuralNetwork::initializeRandomLayerParameters()
+void ConvolutionalNeuralNetwork::initializeRandomHiddenLayerParameters()
 {
-    this->initializeRandomLayerParameters(HiddenLayerParameters::defaultMinInitialWeight, HiddenLayerParameters::defaultMaxInitialWeight, HiddenLayerParameters::defaultMinInitialBias, HiddenLayerParameters::defaultMaxInitialBias);
-};
+    this->neuralNetwork.initializeRandomHiddenLayerParameters();
+}
 
-void ConvolutionalNeuralNetwork::initializeRandomLayerParameters(float minInitialWeight, float maxInitialWeight, float minInitialBias, float maxInitialBias)
+void ConvolutionalNeuralNetwork::initializeRandomHiddenLayerParameters(float minInitialWeight, float maxInitialWeight, float minInitialBias, float maxInitialBias)
+{
+    this->neuralNetwork.initializeRandomHiddenLayerParameters(minInitialWeight, maxInitialWeight, minInitialBias, maxInitialBias);
+}
+
+void ConvolutionalNeuralNetwork::initializeRandomFeatureLayerParameters()
 {
     std::random_device rd;
     std::mt19937 rng(rd());
@@ -670,8 +696,6 @@ void ConvolutionalNeuralNetwork::initializeRandomLayerParameters(float minInitia
 
         featureLayersOutputDimensions = featureLayerParameters->getOutputDimensions(featureLayersOutputDimensions);
     }
-
-    this->neuralNetwork.initializeRandomLayerParameters(minInitialWeight, maxInitialWeight, minInitialBias, maxInitialBias);
 };
 
 Matrix ConvolutionalNeuralNetwork::calculateFeedForwardOutput(const Tensor& input)
@@ -692,15 +716,11 @@ float ConvolutionalNeuralNetwork::calculateLoss(const Tensor& input, const Matri
     return evaluateLossFunction(this->neuralNetwork.getLossFunction(), predictedValues, expectedOutput);
 };
 
-ConvolutionalNetworkLossPartials ConvolutionalNeuralNetwork::calculateLossPartials(TensorDataPoint dataPoint)
+ConvolutionalNetworkLossPartials ConvolutionalNeuralNetwork::calculateLossPartials(NetworkLossPartials neuralNetworkLossPartials)
 {
-    this->calculateFeedForwardOutput(dataPoint.input);
+    auto dLossWrtOutput = Tensor::fromColumnVector(neuralNetworkLossPartials.inputLayerLossPartials, this->featureLayerStates.back()->output.getDimensions());
 
-    auto neuralNetworkLossPartials = this->neuralNetwork.calculateLossPartials(dataPoint.expectedOutput);
-
-    auto dLossWrtFeatureLayersOutput = Tensor::fromColumnVector(neuralNetworkLossPartials.inputLayerLossPartials, this->featureLayerStates.back()->output.getDimensions());
-
-    this->featureLayerParameters.back()->calculateLossPartials(dLossWrtFeatureLayersOutput, this->featureLayerStates.back().get());
+    this->featureLayerParameters.back()->calculateLossPartials(dLossWrtOutput, this->featureLayerStates.back().get());
 
     for (int i = this->featureLayerParameters.size() - 2;i>=0;i--) this->featureLayerParameters[i]->calculateLossPartials(this->featureLayerStates[i + 1]->dLossWrtInput, this->featureLayerStates[i].get());
 
@@ -711,6 +731,15 @@ ConvolutionalNetworkLossPartials ConvolutionalNeuralNetwork::calculateLossPartia
     auto inputLayerLossPartials = this->featureLayerStates[0]->dLossWrtInput;
 
     return ConvolutionalNetworkLossPartials(inputLayerLossPartials, featureLayerLossPartials, neuralNetworkLossPartials);
+};
+
+ConvolutionalNetworkLossPartials ConvolutionalNeuralNetwork::calculateLossPartials(TensorDataPoint dataPoint)
+{
+    this->calculateFeedForwardOutput(dataPoint.input);
+
+    auto neuralNetworkLossPartials = this->neuralNetwork.calculateLossPartials(dataPoint.expectedOutput);
+    
+    return this->calculateLossPartials(neuralNetworkLossPartials);
 };
 
 ConvolutionalNetworkLossPartials ConvolutionalNeuralNetwork::calculateBatchLossPartials(std::vector<TensorDataPoint> dataBatch)

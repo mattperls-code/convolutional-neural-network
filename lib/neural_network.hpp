@@ -174,8 +174,8 @@ class NeuralNetwork
         Matrix getNormalizedOutput();
         LossFunction getLossFunction();
 
-        void initializeRandomLayerParameters();
-        void initializeRandomLayerParameters(float minInitialWeight, float maxInitialWeight, float minInitialBias, float maxInitialBias);
+        void initializeRandomHiddenLayerParameters();
+        void initializeRandomHiddenLayerParameters(float minInitialWeight, float maxInitialWeight, float minInitialBias, float maxInitialBias);
 
         Matrix calculateFeedForwardOutput(const Matrix& input);
 
