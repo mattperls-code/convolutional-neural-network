@@ -1,86 +1,48 @@
 #include <iostream>
 
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/memory.hpp>
+
 #include "../src/convolutional_neural_network.hpp"
 
 int main()
 {
+    auto input = ImageOperations::pngToTensor("./app/img10x10.png");
+
+    Matrix expectedOutput({{ 1.0 }, { 2.0 }, { -3.0 }});
+
+    TensorDataPoint trainingDataPoint(input, expectedOutput);
+    
     ConvolutionalNeuralNetwork cnn(
-        Dimensions(3, Shape(7, 7)),
+        Dimensions(3, Shape(10, 10)),
         {
-            new PoolLayerParameters(MAX, Shape(2, 2), 1, 0),
-            new ConvolutionLayerParameters({
-                Tensor({
-                    Matrix({
-                        { 0.0, 1.0 },
-                        { 1.0, 1.0}
-                    }),
-                    Matrix({
-                        { -0.5, 0.0 },
-                        { 0.5, 1.0 }
-                    }),
-                    Matrix({
-                        { -1.0, -1.0 },
-                        { 0.0, 0.0}
-                    }),
-                }),
-                Tensor({
-                    Matrix({
-                        { 0.0, 0.5 },
-                        { -0.5, 0.0 }
-                    }),
-                    Matrix({
-                        { 1.0, -1.0 },
-                        { -0.5, 0.5}
-                    }),
-                    Matrix({
-                        { 0.0, 0.5 },
-                        { -0.5, 0.5 }
-                    }),
-                })
-            }, 2, 1),
-            new ActivationLayerParameters(RELU, std::vector<float>({ 0.3, 0.6 }), std::vector<float>({ 0.1, -0.2 }))
+            new PoolLayerParameters(AVG, Shape(2, 2), 1, 0),
+            new ConvolutionLayerParameters(4, Shape(2, 2), 2, 1),
+            new ActivationLayerParameters(TANH)
         },
         {
-            HiddenLayerParameters(6, TANH),
-            HiddenLayerParameters(4, LINEAR)
+            HiddenLayerParameters(3, LINEAR)
         },
-        SOFTMAX,
-        CATEGORICAL_CROSS_ENTROPY
+        IDENTITY,
+        SUM_SQUARED_ERROR
     );
 
-    cnn.initializeRandomLayerParameters();
+    auto loaded = cnn.load("./results/training/test.json");
 
-    Tensor input({
-        Matrix({
-            { 0.2, 0.4, 0.6, 0.8, 1.0, 0.0, 0.2 },
-            { 0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 0.0 },
-            { 0.4, 0.6, 0.8, 1.0, 0.0, 0.2, 0.4 },
-            { 0.6, 0.8, 1.0, 0.0, 0.2, 0.4, 0.6 },
-            { 0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 0.0 },
-            { 1.0, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0 },
-            { 0.4, 0.6, 0.8, 1.0, 0.0, 0.2, 0.4 },
-        }),
-        Matrix({
-            { 1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 1.0 },
-            { 0.8, 1.0, 0.0, 0.2, 0.4, 0.6, 0.8 },
-            { 0.6, 0.4, 0.2, 0.0, 1.0, 0.8, 0.6 },
-            { 0.4, 0.2, 0.0, 1.0, 0.8, 0.6, 0.4 },
-            { 0.8, 0.6, 0.4, 0.2, 0.0, 1.0, 0.8 },
-            { 0.6, 0.8, 1.0, 0.0, 0.2, 0.4, 0.6 },
-            { 1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 1.0 }
-        }),
-        Matrix({
-            { 0.2, 0.0, 1.0, 0.8, 0.6, 0.4, 0.2 },
-            { 0.2, 0.4, 0.6, 0.8, 1.0, 0.0, 0.2 },
-            { 0.0, 1.0, 0.8, 0.6, 0.4, 0.2, 0.0 },
-            { 0.8, 1.0, 0.0, 0.2, 0.4, 0.6, 0.8 },
-            { 0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 0.0 },
-            { 1.0, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0 },
-            { 0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 0.0 }
-        })
-    });
+    if (!loaded) {
+        cnn.initializeRandomFeatureLayerParameters();
+        cnn.initializeRandomHiddenLayerParameters(-0.5, 0.5, -0.5, 0.5);
+    }
 
-    cnn.calculateFeedForwardOutput(input);
+    for (int i = 0;i<20;i++) {
+        cnn.train(trainingDataPoint, 0.005);
+
+        std::cout << "Output after " << (i + 1) << " rounds of training: " << cnn.getNormalizedOutput().toString() << std::endl;
+    }
+
+    cnn.save("./results/training/test.json");
 
     return 0;
 };

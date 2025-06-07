@@ -1,7 +1,7 @@
 #ifndef IMAGE_OPERATIONS_HPP
 #define IMAGE_OPERATIONS_HPP
 
-#include "../lib/matrix.hpp"
+#include "tensor.hpp"
 
 class ImageOperations
 {
@@ -20,6 +20,8 @@ class ImageOperations
         static Matrix crop(const Matrix& image, int x, int y, const Shape& newSize, float fillValue);
         static Matrix translate(const Matrix& image, int x, int y, float fillValue);
         static Matrix rotate(const Matrix& image, float theta, float fillValue);
+
+        static Tensor pngToTensor(const std::string& pngFilePath);
 };
 
 #endif

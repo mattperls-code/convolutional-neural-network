@@ -1,5 +1,13 @@
 #include "convolutional_neural_network.hpp"
 
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/memory.hpp>
+
+#include <filesystem>
+#include <fstream>
+
 // feature layer loss partials
 
 void ConvolutionLayerLossPartials::add(const FeatureLayerLossPartials* other)
@@ -117,6 +125,14 @@ std::string ActivationLayerState::toString() const
 
 // feature layer parameters
 
+CEREAL_REGISTER_TYPE(ConvolutionLayerParameters);
+CEREAL_REGISTER_TYPE(PoolLayerParameters);
+CEREAL_REGISTER_TYPE(ActivationLayerParameters);
+
+CEREAL_REGISTER_POLYMORPHIC_RELATION(FeatureLayerParameters, ConvolutionLayerParameters);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(FeatureLayerParameters, PoolLayerParameters);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(FeatureLayerParameters, ActivationLayerParameters);
+
 ConvolutionLayerParameters::ConvolutionLayerParameters(int kernelCount, const Shape& kernelShape, int stride, int padding)
 {
     if (kernelCount < 1) throw std::runtime_error("ConvolutionLayerParameters constructor: layer must have at least one kernel");
@@ -182,7 +198,28 @@ void ConvolutionLayerParameters::runFeedforward(const Tensor& input, FeatureLaye
 
     std::vector<Matrix> paddedInputMatrices(inputDepth);
 
-    for (int i = 0;i<inputDepth;i++) paddedInputMatrices[i] = ImageOperations::pad(input.getMatrix(i), this->padding);
+    // remove pixels that arent convolved on the right and bottom side due to truncation
+    // this is necessary to ensure correct dLossWrtKernels in back propagation
+
+    auto rowCropReduction = (input.getDimensions().shape.rows + 2 * this->padding - this->kernelShape.rows) % this->stride;
+    auto colCropReduction = (input.getDimensions().shape.cols + 2 * this->padding - this->kernelShape.cols) % this->stride;
+
+    for (int i = 0;i<inputDepth;i++) {
+        auto padded = ImageOperations::pad(input.getMatrix(i), this->padding);
+
+        // TODO: ideally should crop centrally, but then it would have to adjust a bunch of indices for backprop
+
+        paddedInputMatrices[i] = ImageOperations::crop(
+            padded,
+            0,
+            0,
+            Shape(
+                padded.rowCount() - rowCropReduction,
+                padded.colCount() - colCropReduction
+            ),
+            0.0
+        );
+    }
 
     convolutionLayerState->paddedInput = Tensor(paddedInputMatrices);
 
@@ -279,22 +316,7 @@ PoolLayerParameters::PoolLayerParameters(PoolMode mode, const Shape& window, int
 
     this->mode = mode;
 
-    switch (this->mode) {
-        case MIN:
-            this->poolOperation = ImageOperations::minPool;
-            break;
-        case MAX:
-            this->poolOperation = ImageOperations::maxPool;
-            break;
-        case AVG:
-            this->poolOperation = ImageOperations::avgPool;
-            break;
-        default:
-            throw std::runtime_error("PoolLayerParameters constructor: unhandled mode");
-    }
-
     this->window = window;
-
     this->stride = stride;
     this->padding = padding;
 };
@@ -330,7 +352,23 @@ void PoolLayerParameters::runFeedforward(const Tensor& input, FeatureLayerState*
 
     std::vector<Matrix> poolOutput(inputDepth);
 
-    for (int i = 0;i<inputDepth;i++) poolOutput[i] = this->poolOperation(paddedInputMatrices[i], this->window, this->stride);
+    decltype(ImageOperations::minPool)* poolOperation;
+
+    switch (this->mode) {
+        case MIN:
+            poolOperation = ImageOperations::minPool;
+            break;
+        case MAX:
+            poolOperation = ImageOperations::maxPool;
+            break;
+        case AVG:
+            poolOperation = ImageOperations::avgPool;
+            break;
+        default:
+            throw std::runtime_error("PoolLayerParameters runFeedforward: unhandled mode");
+    }
+
+    for (int i = 0;i<inputDepth;i++) poolOutput[i] = poolOperation(paddedInputMatrices[i], this->window, this->stride);
 
     poolLayerState->output = Tensor(poolOutput);
 };
@@ -813,4 +851,40 @@ std::string ConvolutionalNeuralNetwork::toString()
     output += "<NN> " + this->neuralNetwork.toString();
 
     return output;
+};
+
+bool ConvolutionalNeuralNetwork::save(const std::string& backupFilePath)
+{
+    try {
+        std::filesystem::path path(backupFilePath);
+        if (!path.parent_path().empty()) std::filesystem::create_directories(path.parent_path());
+
+        std::ofstream outputStream(backupFilePath);
+
+        cereal::JSONOutputArchive archive(outputStream);
+
+        archive(*this);
+
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
+};
+
+bool ConvolutionalNeuralNetwork::load(const std::string& backupFilePath)
+{
+    try {
+        std::filesystem::path path(backupFilePath);
+        if (!path.parent_path().empty()) std::filesystem::create_directories(path.parent_path());
+
+        std::ifstream inputStream(backupFilePath);
+
+        cereal::JSONInputArchive archive(inputStream);
+
+        archive(*this);
+
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
 };

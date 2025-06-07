@@ -1,7 +1,10 @@
 #ifndef TENSOR_HPP
 #define TENSOR_HPP
 
-#include "../lib/matrix.hpp"
+#include "matrix.hpp"
+
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
 
 class Dimensions
 {
@@ -17,6 +20,11 @@ class Dimensions
         int volume() const;
 
         std::string toString() const;
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(this->depth, this->shape);
+        };
 };
 
 class Tensor
@@ -44,6 +52,11 @@ class Tensor
         Matrix getColumnVector() const;
 
         std::string toString() const;
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(this->data);
+        };
 
         static Tensor fromColumnVector(Matrix& columnVector, const Dimensions& tensorDimensions);
 

@@ -1,6 +1,9 @@
 #ifndef NEURAL_NETWORK_HPP
 #define NEURAL_NETWORK_HPP
 
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
+
 #include "matrix.hpp"
 
 enum UnaryActivationFunction
@@ -106,8 +109,14 @@ class HiddenLayerParameters
         Matrix weights;
         Matrix bias;
 
+        HiddenLayerParameters() = default;
         HiddenLayerParameters(int nodeCount, UnaryActivationFunction unaryActivationFunction);
         HiddenLayerParameters(UnaryActivationFunction unaryActivationFunction, const Matrix& weights, const Matrix& bias);
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(this->nodeCount, this->unaryActivationFunction, this->weights, this->bias);
+        };
 
         static constexpr float defaultMinInitialWeight = -5.0;
         static constexpr float defaultMaxInitialWeight = 5.0;
@@ -193,6 +202,11 @@ class NeuralNetwork
         void batchTrain(std::vector<DataPoint> trainingDataBatch, float learningRate);
 
         std::string toString() const;
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(this->inputLayerNodeCount, this->hiddenLayerParameters, this->outputNormalizationFunction, this->lossFunction);
+        };
 };
 
 #endif

@@ -3,10 +3,13 @@
 
 #include <memory>
 
-#include "../lib/neural_network.hpp"
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/memory.hpp>
 
+#include "neural_network.hpp"
 #include "image_operations.hpp"
-#include "tensor.hpp"
 
 enum FeatureLayerType
 {
@@ -142,6 +145,11 @@ class FeatureLayerParameters
         virtual std::string toString() const = 0;
 
         virtual ~FeatureLayerParameters() = default;
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(this->type);
+        };
 };
 
 class ConvolutionLayerParameters : public FeatureLayerParameters
@@ -156,6 +164,7 @@ class ConvolutionLayerParameters : public FeatureLayerParameters
         int padding;
 
     public:
+        ConvolutionLayerParameters() = default;
         ConvolutionLayerParameters(int kernelCount, const Shape& kernelShape, int stride, int padding);
         ConvolutionLayerParameters(const std::vector<Tensor>& kernels, int stride, int padding);
         
@@ -169,6 +178,11 @@ class ConvolutionLayerParameters : public FeatureLayerParameters
         void applyLossPartials(const FeatureLayerLossPartials* lossPartials) override;
 
         std::string toString() const override;
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(cereal::base_class<FeatureLayerParameters>(this), this->kernelCount, this->kernelShape, this->kernels, this->stride, this->padding);
+        };
 };
 
 enum PoolMode
@@ -182,7 +196,6 @@ class PoolLayerParameters : public FeatureLayerParameters
 {
     private:
         PoolMode mode;
-        decltype(ImageOperations::minPool)* poolOperation;
 
         Shape window;
 
@@ -190,6 +203,7 @@ class PoolLayerParameters : public FeatureLayerParameters
         int padding;
 
     public:
+        PoolLayerParameters() = default;
         PoolLayerParameters(PoolMode mode, const Shape& window, int stride, int padding);
         
         void randomizeParameters(const Dimensions& inputDimensions, std::mt19937& rng) override;
@@ -202,6 +216,11 @@ class PoolLayerParameters : public FeatureLayerParameters
         void applyLossPartials(const FeatureLayerLossPartials* lossPartials) override;
 
         std::string toString() const override;
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(cereal::base_class<FeatureLayerParameters>(this), this->mode, this->window, this->stride, this->padding);
+        };
 };
 
 class ActivationLayerParameters : public FeatureLayerParameters
@@ -213,6 +232,7 @@ class ActivationLayerParameters : public FeatureLayerParameters
         std::vector<float> bias;
 
     public:
+        ActivationLayerParameters() = default;
         ActivationLayerParameters(UnaryActivationFunction unaryActivationFunction);
         ActivationLayerParameters(UnaryActivationFunction unaryActivationFunction, std::vector<float> weights, std::vector<float> bias);
 
@@ -226,6 +246,11 @@ class ActivationLayerParameters : public FeatureLayerParameters
         void applyLossPartials(const FeatureLayerLossPartials* lossPartials) override;
 
         std::string toString() const override;
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(cereal::base_class<FeatureLayerParameters>(this), this->unaryActivationFunction, this->weights, this->bias);
+        };
 };
 
 class ConvolutionalNetworkLossPartials
@@ -287,6 +312,14 @@ class ConvolutionalNeuralNetwork
         void batchTrain(std::vector<TensorDataPoint> trainingDataBatch, float learningRate);
 
         std::string toString();
+
+        bool save(const std::string& backupFilePath);
+        bool load(const std::string& backupFilePath);
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(this->inputLayerDimensions, this->featureLayerParameters, this->neuralNetwork);
+        };
 };
 
 #endif

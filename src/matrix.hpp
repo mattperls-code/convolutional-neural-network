@@ -5,6 +5,9 @@
 #include <string>
 #include <random>
 
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
+
 class Shape
 {
     public:
@@ -19,6 +22,11 @@ class Shape
         int area() const;
 
         std::string toString() const;
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(this->rows, this->cols);
+        };
 };
 
 class Matrix
@@ -49,6 +57,11 @@ class Matrix
         std::vector<float>& dangerouslyGetData();
 
         std::string toString() const;
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(this->rows, this->cols, this->data);
+        };
 
         static Matrix transpose(const Matrix& mat);
         static Matrix flipped(const Matrix& mat);

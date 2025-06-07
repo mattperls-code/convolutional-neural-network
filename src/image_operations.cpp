@@ -1,5 +1,7 @@
 #include "image_operations.hpp"
 
+#include <lodepng/lodepng.h>
+
 Matrix ImageOperations::pad(const Matrix& image, float value, int leftPadding, int rightPadding, int topPadding, int bottomPadding)
 {
     if (leftPadding == 0 && rightPadding == 0 && topPadding == 0 && bottomPadding == 0) return image;
@@ -264,6 +266,29 @@ Matrix ImageOperations::rotate(const Matrix& image, float theta, float fillValue
             auto imageC = round(rotatedX - 0.5 + 0.5 * output.colCount());
 
             if (imageR >= 0 && imageC >= 0 && imageR < image.rowCount() && imageC < image.colCount()) output.set(r, c, image.get(imageR, imageC));
+        }
+    }
+
+    return output;
+};
+
+Tensor ImageOperations::pngToTensor(const std::string& pngFilePath)
+{
+    std::vector<unsigned char> imageData;
+
+    unsigned int imageWidth, imageHeight;
+
+    auto error = lodepng::decode(imageData, imageWidth, imageHeight, pngFilePath);
+
+    if (error) throw std::runtime_error("ImageOperations pngToTensor: error opening " + pngFilePath + ", " + lodepng_error_text(error));
+
+    Tensor output(Dimensions(3, Shape(imageHeight, imageWidth)));
+
+    for (int r = 0;r<imageHeight;r++) {
+        for (int c = 0;c<imageWidth;c++) {
+            auto offset = 4 * (r * imageWidth + c);
+
+            for (int i = 0;i<3;i++) output.set(r, c, i, (float) imageData[offset + i] / 256);
         }
     }
 
