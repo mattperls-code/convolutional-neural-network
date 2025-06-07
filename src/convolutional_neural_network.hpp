@@ -285,6 +285,7 @@ class ConvolutionalNeuralNetwork
         NeuralNetwork neuralNetwork;
 
     public:
+        ConvolutionalNeuralNetwork() = default;
         ConvolutionalNeuralNetwork(const Dimensions& inputLayerDimensions, std::vector<FeatureLayerParameters*> featureLayersParameters, std::vector<HiddenLayerParameters> hiddenLayerParameters, NormalizationFunction outputNormalizationFunction, LossFunction lossFunction);
 
         Dimensions getInputLayerDimensions();

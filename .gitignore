@@ -1,3 +1,8 @@
 main
 test
+
 .vscode
+
+# https://www.kaggle.com/datasets/oddrationale/mnist-in-csv
+app/mnist/training.csv
+app/mnist/testing.csv
