@@ -9,6 +9,7 @@
 #include <cereal/types/memory.hpp>
 
 #include "../src/convolutional_neural_network.hpp"
+#include "../src/image_operations.hpp"
 
 ConvolutionalNeuralNetwork cnn;
 
@@ -17,14 +18,13 @@ void initModel()
     cnn = ConvolutionalNeuralNetwork(
         Dimensions(1, Shape(28, 28)),
         {
-            new PoolLayerParameters(AVG, Shape(2, 2), 2, 0),
-            new ConvolutionLayerParameters(8, Shape(5, 5), 2, 0),
+            new ConvolutionLayerParameters(8, Shape(3, 3), 1, 1),
             new ActivationLayerParameters(RELU),
-            new ConvolutionLayerParameters(16, Shape(7, 7), 1, 2),
-            new PoolLayerParameters(MAX, Shape(2, 2), 1, 0)
+            new ConvolutionLayerParameters(16, Shape(3, 3), 1, 1),
+            new PoolLayerParameters(MAX, Shape(2, 2), 2, 0)
         },
         {
-            HiddenLayerParameters(24, SIGMOID),
+            HiddenLayerParameters(64, RELU),
             HiddenLayerParameters(10, LINEAR)
         },
         SOFTMAX,
@@ -32,17 +32,45 @@ void initModel()
     );
 
     cnn.initializeRandomFeatureLayerParameters();
-    cnn.initializeRandomHiddenLayerParameters();
+    cnn.initializeRandomHiddenLayerParameters(-0.1, 0.1, -0.1, 0.1);
 };
 
 void cli_load()
 {
-    std::cout << "TODO: load" << std::endl << std::endl;
+    std::cout << "Saved Model File Path? ";
+
+    std::string savedModelFilePath;
+
+    std::cin >> savedModelFilePath;
+
+    std::cout << std::endl;
+
+    bool loaded = cnn.load(savedModelFilePath);
+
+    if (loaded) std::cout << "Successfully Loaded";
+
+    else std::cout << "An Error Occurred";
+
+    std::cout << std::endl << std::endl;
 };
 
 void cli_save()
 {
-    std::cout << "TODO: save" << std::endl << std::endl;
+    std::cout << "Saved Model File Path? ";
+
+    std::string savedModelFilePath;
+
+    std::cin >> savedModelFilePath;
+
+    std::cout << std::endl;
+
+    bool saved = cnn.save(savedModelFilePath);
+
+    if (saved) std::cout << "Successfully Saved";
+
+    else std::cout << "An Error Occurred";
+
+    std::cout << std::endl << std::endl;
 };
 
 void cli_train()
@@ -102,19 +130,13 @@ void cli_train()
     
     std::cout << "Training Data Initialized" << std::endl;
 
-    int trainingBatchSize = 1000;
+    int trainingBatchSize = 1200;
     int batches = 60000 / trainingBatchSize;
 
     for (int i = 0;i<cycleCount;i++) {
-        int batchIndex = 0; // i % batches;
+        int batchIndex = i % batches;
 
-        auto testDataPoint = trainingData[0];
-
-        auto lossBefore = cnn.calculateLoss(testDataPoint.input, testDataPoint.expectedOutput);
-
-        std::cout << "loss: " << lossBefore << std::endl;
-
-        cnn.batchTrain(
+        auto batchLoss = cnn.batchTrain(
             std::vector<TensorDataPoint>(
                 trainingData.begin() + trainingBatchSize * batchIndex,
                 trainingData.begin() + trainingBatchSize * (batchIndex + 1)
@@ -122,9 +144,7 @@ void cli_train()
             0.1
         );
 
-        auto lossAfter = cnn.calculateLoss(testDataPoint.input, testDataPoint.expectedOutput);
-
-        std::cout << "Finished Cycle " << i << std::endl;
+        std::cout << "Finished Cycle " << i << " with batch loss of " << batchLoss << std::endl;
     }
 
     std::cout << "Finished Training" << std::endl << std::endl;
@@ -132,12 +152,79 @@ void cli_train()
 
 void cli_test()
 {
-    std::cout << "TODO: test" << std::endl << std::endl;
+    std::cout << "Initializing Testing Data" << std::endl;
+
+    std::vector<TensorDataPoint> testingData;
+    testingData.reserve(60000);
+
+    std::ifstream testingDataFile("./app/mnist/testing.csv");
+
+    auto firstLine = true;
+    std::string line;
+
+    while (getline(testingDataFile, line)) {
+        if (firstLine) {
+            firstLine = false;
+            continue;
+        }
+
+        testingData.emplace_back(Tensor(Dimensions(1, Shape(28, 28))), Matrix(Shape(10, 1)));
+
+        std::stringstream lineStream(line);
+
+        char label;
+
+        lineStream >> label;
+
+        auto labelIndex = label - '0';
+        testingData.back().expectedOutput.set(labelIndex, 0, 1.0);
+
+        lineStream.ignore();
+        
+        std::string pixelValueStr;
+
+        int pixelIndex = 0;
+
+        while (getline(lineStream, pixelValueStr, ',')) {
+            testingData.back().input.dangerouslyGetData()[0].dangerouslyGetData()[pixelIndex] = std::stof(pixelValueStr) / 256.0;
+            pixelIndex++;
+        }
+    }
+
+    std::cout << "Testing Data Initialized" << std::endl;
+
+    std::cout << "Calculating Average Testing Data Loss" << std::endl;
+
+    auto averageLoss = 0.0;
+
+    for (auto testDataPoint : testingData) averageLoss += cnn.calculateLoss(testDataPoint.input, testDataPoint.expectedOutput);
+
+    averageLoss /= testingData.size();
+
+    std::cout << "Average Testing Data Loss: " << averageLoss << std::endl << std::endl;
+
+    return; // forces compiler to eval before early return
 };
 
-void cli_draw()
+void cli_drawing()
 {
-    std::cout << "TODO: draw" << std::endl << std::endl;
+    std::cout << "PNG Drawing File Path? ";
+
+    std::string pngDrawingFilePath;
+
+    std::cin >> pngDrawingFilePath;
+
+    std::cout << std::endl;
+
+    auto inputImage = ImageOperations::rgbToGreyscale(ImageOperations::pngToTensor(pngDrawingFilePath));
+
+    for (auto& channel : inputImage.dangerouslyGetData()) channel = ImageOperations::resize(channel, Shape(28, 28));
+
+    std::cout << "input dims: " << inputImage.getDimensions().toString() << std::endl;
+
+    auto results = cnn.calculateFeedForwardOutput(inputImage);
+
+    std::cout << "Output: " << results.toString() << std::endl << std::endl;
 };
 
 int main()
@@ -149,7 +236,7 @@ int main()
     while (true) {
         std::string command;
 
-        std::cout << "Enter a command (LOAD, SAVE, TRAIN, TEST, DRAW, EXIT): ";
+        std::cout << "Enter a command (LOAD, SAVE, TRAIN, TEST, DRAWING, EXIT): ";
 
         std::cin >> command;
 
@@ -163,7 +250,7 @@ int main()
 
         else if (command == "TEST") cli_test();
 
-        else if (command == "DRAW") cli_draw();
+        else if (command == "DRAWING") cli_drawing();
 
         else if (command == "EXIT") break;
 

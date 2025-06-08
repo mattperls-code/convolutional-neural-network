@@ -323,6 +323,8 @@ void NetworkLossPartials::add(const NetworkLossPartials& other)
     if (this->inputLayerLossPartials.rowCount() != other.inputLayerLossPartials.rowCount()) throw std::runtime_error("NetworkLossPartials add: other has a different number of input nodes");
     if (this->hiddenLayersLossPartials.size() != other.hiddenLayersLossPartials.size()) throw std::runtime_error("NetworkLossPartials add: other has a different number of hidden layers");
 
+    this->loss += other.loss;
+
     this->inputLayerLossPartials = Matrix::add(this->inputLayerLossPartials, other.inputLayerLossPartials);
 
     for (int i = 0;i<this->hiddenLayersLossPartials.size();i++) {
@@ -333,6 +335,8 @@ void NetworkLossPartials::add(const NetworkLossPartials& other)
 
 void NetworkLossPartials::scalarMultiply(float scalar)
 {
+    this->loss *= scalar;
+
     this->inputLayerLossPartials = Matrix::scalarProduct(this->inputLayerLossPartials, scalar);
 
     for (auto& hiddenLayerLossPartials : this->hiddenLayersLossPartials) {
@@ -427,6 +431,13 @@ Matrix NeuralNetwork::calculateFeedForwardOutput(const Matrix& input)
     return this->normalizedOutput;
 };
 
+float NeuralNetwork::calculateLoss(const Matrix& expectedOutput)
+{
+    auto predictedValues = this->getNormalizedOutput();
+
+    return evaluateLossFunction(this->lossFunction, predictedValues, expectedOutput);
+};
+
 float NeuralNetwork::calculateLoss(const Matrix& input, const Matrix& expectedOutput)
 {
     if (expectedOutput.rowCount() != this->hiddenLayerParameters.back().nodeCount) throw std::runtime_error("NeuralNetwork calculateLoss: incorrect number of expected outputs");
@@ -484,7 +495,7 @@ NetworkLossPartials NeuralNetwork::calculateLossPartials(const Matrix& expectedO
 
     Matrix inputLayerLossPartials = this->hiddenLayerStates[0].dLossWrtInput;
 
-    return NetworkLossPartials(inputLayerLossPartials, hiddenLayerLossPartials);
+    return NetworkLossPartials(this->calculateLoss(expectedOutput), inputLayerLossPartials, hiddenLayerLossPartials);
 };
 
 NetworkLossPartials NeuralNetwork::calculateLossPartials(DataPoint dataPoint)

@@ -1,5 +1,6 @@
 #include "image_operations.hpp"
 
+#include <fstream>
 #include <lodepng/lodepng.h>
 
 Matrix ImageOperations::pad(const Matrix& image, float value, int leftPadding, int rightPadding, int topPadding, int bottomPadding)
@@ -272,6 +273,46 @@ Matrix ImageOperations::rotate(const Matrix& image, float theta, float fillValue
     return output;
 };
 
+Tensor ImageOperations::rgbToGreyscale(const Tensor& image)
+{
+    auto shape = image.getDimensions().shape;
+
+    Tensor output(Dimensions(1, shape));
+
+    for (int r = 0;r<shape.rows;r++) {
+        for (int c = 0;c<shape.cols;c++) {
+            auto pixelR = image.get(r, c, 0);
+            auto pixelG = image.get(r, c, 1);
+            auto pixelB = image.get(r, c, 2);
+
+            auto pixelGrey = 0.299 * pixelR + 0.587 * pixelG + 0.114 * pixelB;
+
+            output.set(r, c, 0, pixelGrey);
+        }
+    }
+    
+    return output;
+};
+
+Tensor ImageOperations::greyscaleToRgb(const Tensor& image)
+{
+    auto shape = image.getDimensions().shape;
+
+    Tensor output(Dimensions(3, shape));
+
+    for (int r = 0;r<shape.rows;r++) {
+        for (int c = 0;c<shape.cols;c++) {
+            auto pixelGrey = image.get(r, c, 0);
+            
+            output.set(r, c, 0, pixelGrey);
+            output.set(r, c, 1, pixelGrey);
+            output.set(r, c, 2, pixelGrey);
+        }
+    }
+
+    return output;
+};
+
 Tensor ImageOperations::pngToTensor(const std::string& pngFilePath)
 {
     std::vector<unsigned char> imageData;
@@ -288,9 +329,36 @@ Tensor ImageOperations::pngToTensor(const std::string& pngFilePath)
         for (int c = 0;c<imageWidth;c++) {
             auto offset = 4 * (r * imageWidth + c);
 
-            for (int i = 0;i<3;i++) output.set(r, c, i, (float) imageData[offset + i] / 256);
+            for (int i = 0;i<3;i++) output.set(r, c, i, (float) imageData[offset + i] / 255);
         }
     }
 
     return output;
+};
+
+void ImageOperations::tensorToPng(const std::string& outputFilePath, const Tensor& tensor)
+{
+    auto dimensions = tensor.getDimensions();
+
+    if (dimensions.depth != 3) throw std::runtime_error("ImageOperations tensorToPng: tensor must have 3 channels");
+
+    std::filesystem::path path(outputFilePath);
+    if (!path.parent_path().empty()) std::filesystem::create_directories(path.parent_path());
+
+    unsigned int imageWidth = dimensions.shape.cols;
+    unsigned int imageHeight = dimensions.shape.rows;
+
+    std::vector<unsigned char> imageData(4 * imageWidth * imageHeight, 255);
+
+    for (int r = 0;r<imageHeight;r++) {
+        for (int c = 0;c<imageWidth;c++) {
+            int offset = 4 * (r * imageWidth + c);
+
+            for (int i = 0;i<3;i++) imageData[offset + i] = 255 * tensor.get(r, c, i);
+        }
+    }
+
+    auto error = lodepng::encode(outputFilePath, imageData, imageWidth, imageHeight);
+
+    if (error) throw std::runtime_error("ImageOperations tensorToPng: error writing " + outputFilePath + ", " + lodepng_error_text(error));
 };

@@ -138,11 +138,12 @@ class HiddenLayerLossPartials
 class NetworkLossPartials
 {
     public:
+        float loss;
         Matrix inputLayerLossPartials;
         std::vector<HiddenLayerLossPartials> hiddenLayersLossPartials;
 
         NetworkLossPartials() = default;
-        NetworkLossPartials(const Matrix& inputLayerLossPartials, const std::vector<HiddenLayerLossPartials>& hiddenLayersLossPartials): inputLayerLossPartials(inputLayerLossPartials), hiddenLayersLossPartials(hiddenLayersLossPartials) {};
+        NetworkLossPartials(float loss, const Matrix& inputLayerLossPartials, const std::vector<HiddenLayerLossPartials>& hiddenLayersLossPartials): loss(loss), inputLayerLossPartials(inputLayerLossPartials), hiddenLayersLossPartials(hiddenLayersLossPartials) {};
 
         void add(const NetworkLossPartials& other);
 
@@ -188,10 +189,10 @@ class NeuralNetwork
 
         Matrix calculateFeedForwardOutput(const Matrix& input);
 
+        float calculateLoss(const Matrix& expectedOutput); // must be called only after feedforward
         float calculateLoss(const Matrix& input, const Matrix& expectedOutput);
 
-        // should only be called after feed forward has run
-        NetworkLossPartials calculateLossPartials(const Matrix& expectedOutput);
+        NetworkLossPartials calculateLossPartials(const Matrix& expectedOutput); // must be called only after feedforward
         
         NetworkLossPartials calculateLossPartials(DataPoint dataPoint);
         NetworkLossPartials calculateBatchLossPartials(std::vector<DataPoint> dataBatch);

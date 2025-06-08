@@ -21,7 +21,11 @@ class ImageOperations
         static Matrix translate(const Matrix& image, int x, int y, float fillValue);
         static Matrix rotate(const Matrix& image, float theta, float fillValue);
 
+        static Tensor rgbToGreyscale(const Tensor& image);
+        static Tensor greyscaleToRgb(const Tensor& image);
+
         static Tensor pngToTensor(const std::string& pngFilePath);
+        static void tensorToPng(const std::string& outputFilePath, const Tensor& tensor);
 };
 
 #endif

@@ -256,11 +256,12 @@ class ActivationLayerParameters : public FeatureLayerParameters
 class ConvolutionalNetworkLossPartials
 {
     public:
+        float loss;
         Tensor inputLayerLossPartials;
         std::vector<std::unique_ptr<FeatureLayerLossPartials>> featureLayersLossPartials;
         NetworkLossPartials neuralNetworkLossPartials;
 
-        ConvolutionalNetworkLossPartials(const Tensor& inputLayerLossPartials, std::vector<FeatureLayerLossPartials*> featureLayersLossPartials, const NetworkLossPartials& neuralNetworkLossPartials);
+        ConvolutionalNetworkLossPartials(float loss, const Tensor& inputLayerLossPartials, std::vector<FeatureLayerLossPartials*> featureLayersLossPartials, const NetworkLossPartials& neuralNetworkLossPartials);
 
         void add(const ConvolutionalNetworkLossPartials& other);
 
@@ -301,6 +302,7 @@ class ConvolutionalNeuralNetwork
 
         Matrix calculateFeedForwardOutput(const Tensor& input);
 
+        float calculateLoss(const Matrix& expectedOutput); // must call feedforward before
         float calculateLoss(const Tensor& input, const Matrix& expectedOutput);
 
         ConvolutionalNetworkLossPartials calculateLossPartials(NetworkLossPartials neuralNetworkLossPartials);
@@ -309,8 +311,8 @@ class ConvolutionalNeuralNetwork
 
         void applyLossPartials(ConvolutionalNetworkLossPartials lossPartials);
 
-        void train(TensorDataPoint trainingDataPoint, float learningRate);
-        void batchTrain(std::vector<TensorDataPoint> trainingDataBatch, float learningRate);
+        float train(TensorDataPoint trainingDataPoint, float learningRate);
+        float batchTrain(std::vector<TensorDataPoint> trainingDataBatch, float learningRate);
 
         std::string toString();
 

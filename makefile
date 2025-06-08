@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -std=c++23 -Ilib -Isrc -Wall -Wextra -Wno-sign-compare
+CXXFLAGS := -std=c++23 -Ilib -Isrc -Wall -Wextra -Wno-sign-compare -I/opt/homebrew/include
 
 SRC_DIR := src
 LIB_DIR := lib
@@ -21,7 +21,7 @@ $(APP_TARGET): $(APP_MAIN) $(IMPL_SOURCES)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 $(TEST_TARGET): $(TEST_SOURCES) $(IMPL_SOURCES)
-	$(CXX) $(CXXFLAGS) -I/opt/homebrew/include -o $@ $^ -L/opt/homebrew/lib -lcatch2
+	$(CXX) $(CXXFLAGS) -o $@ $^ -L/opt/homebrew/lib -lcatch2
 
 .PHONY: all clean
 clean:

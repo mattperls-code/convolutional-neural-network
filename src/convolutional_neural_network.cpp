@@ -616,8 +616,10 @@ std::string ActivationLayerParameters::toString() const
 
 // convolutional network loss partials
 
-ConvolutionalNetworkLossPartials::ConvolutionalNetworkLossPartials(const Tensor& inputLayerLossPartials, std::vector<FeatureLayerLossPartials*> featureLayersLossPartials, const NetworkLossPartials& neuralNetworkLossPartials)
+ConvolutionalNetworkLossPartials::ConvolutionalNetworkLossPartials(float loss, const Tensor& inputLayerLossPartials, std::vector<FeatureLayerLossPartials*> featureLayersLossPartials, const NetworkLossPartials& neuralNetworkLossPartials)
 {
+    this->loss = loss;
+    
     this->inputLayerLossPartials = inputLayerLossPartials;
 
     this->featureLayersLossPartials.clear();
@@ -633,6 +635,8 @@ void ConvolutionalNetworkLossPartials::add(const ConvolutionalNetworkLossPartial
     
     if (this->featureLayersLossPartials.size() != other.featureLayersLossPartials.size()) throw std::runtime_error("ConvolutionalNetworkLossPartials add: other featureLayersLossPartials is a different size");
 
+    this->loss += other.loss;
+
     this->inputLayerLossPartials = Tensor::add(this->inputLayerLossPartials, other.inputLayerLossPartials);
 
     for (int i = 0;i<this->featureLayersLossPartials.size();i++) this->featureLayersLossPartials[i]->add(other.featureLayersLossPartials[i].get());
@@ -642,6 +646,8 @@ void ConvolutionalNetworkLossPartials::add(const ConvolutionalNetworkLossPartial
 
 void ConvolutionalNetworkLossPartials::scalarMultiply(float scalar)
 {
+    this->loss *= scalar;
+
     this->inputLayerLossPartials = Tensor::scalarProduct(this->inputLayerLossPartials, scalar);
 
     for (auto& featureLayerLossPartials : this->featureLayersLossPartials) featureLayerLossPartials->scalarMultiply(scalar);
@@ -747,6 +753,13 @@ Matrix ConvolutionalNeuralNetwork::calculateFeedForwardOutput(const Tensor& inpu
     return this->neuralNetwork.calculateFeedForwardOutput(this->featureLayerStates.back()->output.getColumnVector());
 };
 
+float ConvolutionalNeuralNetwork::calculateLoss(const Matrix& expectedOutput)
+{
+    auto predictedValues = this->getNormalizedOutput();
+
+    return evaluateLossFunction(this->neuralNetwork.getLossFunction(), predictedValues, expectedOutput);
+};
+
 float ConvolutionalNeuralNetwork::calculateLoss(const Tensor& input, const Matrix& expectedOutput)
 {
     auto predictedValues = this->calculateFeedForwardOutput(input);
@@ -768,7 +781,7 @@ ConvolutionalNetworkLossPartials ConvolutionalNeuralNetwork::calculateLossPartia
 
     auto inputLayerLossPartials = this->featureLayerStates[0]->dLossWrtInput;
 
-    return ConvolutionalNetworkLossPartials(inputLayerLossPartials, featureLayerLossPartials, neuralNetworkLossPartials);
+    return ConvolutionalNetworkLossPartials(neuralNetworkLossPartials.loss, inputLayerLossPartials, featureLayerLossPartials, neuralNetworkLossPartials);
 };
 
 ConvolutionalNetworkLossPartials ConvolutionalNeuralNetwork::calculateLossPartials(TensorDataPoint dataPoint)
@@ -802,20 +815,30 @@ void ConvolutionalNeuralNetwork::applyLossPartials(ConvolutionalNetworkLossParti
     for (int i = 0;i<lossPartials.featureLayersLossPartials.size();i++) this->featureLayerParameters[i]->applyLossPartials(lossPartials.featureLayersLossPartials[i].get());
 };
 
-void ConvolutionalNeuralNetwork::train(TensorDataPoint trainingDataPoint, float learningRate)
+float ConvolutionalNeuralNetwork::train(TensorDataPoint trainingDataPoint, float learningRate)
 {
     auto parameterAdjustements = this->calculateLossPartials(trainingDataPoint);
+
+    auto trainingDataPointLoss = parameterAdjustements.loss;
+
     parameterAdjustements.scalarMultiply(-learningRate);
 
     this->applyLossPartials(std::move(parameterAdjustements));
+
+    return trainingDataPointLoss;
 };
 
-void ConvolutionalNeuralNetwork::batchTrain(std::vector<TensorDataPoint> trainingDataBatch, float learningRate)
+float ConvolutionalNeuralNetwork::batchTrain(std::vector<TensorDataPoint> trainingDataBatch, float learningRate)
 {
     auto parameterAdjustements = this->calculateBatchLossPartials(trainingDataBatch);
+
+    auto trainingDataBatchLoss = parameterAdjustements.loss;
+
     parameterAdjustements.scalarMultiply(-learningRate);
 
     this->applyLossPartials(std::move(parameterAdjustements));
+
+    return trainingDataBatchLoss;
 };
 
 std::string ConvolutionalNeuralNetwork::toString()
