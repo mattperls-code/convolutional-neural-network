@@ -505,8 +505,8 @@ void ActivationLayerParameters::randomizeParameters(const Dimensions& inputDimen
 {
     // TODO: eventually build in a proper way to specify this distribution, a bit of a pain with all the subclassing though
 
-    std::uniform_real_distribution<float> initialWeightDistribution(-1.0, 1.0);
-    std::uniform_real_distribution<float> initialBiasDistribution(-0.2, 0.2);
+    std::uniform_real_distribution<float> initialWeightDistribution(-0.5, 0.5);
+    std::uniform_real_distribution<float> initialBiasDistribution(-0.1, 0.1);
 
     this->weights.resize(inputDimensions.depth);
     this->bias.resize(inputDimensions.depth);

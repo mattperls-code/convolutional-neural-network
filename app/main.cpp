@@ -19,9 +19,10 @@ void initModel()
         Dimensions(1, Shape(28, 28)),
         {
             new ConvolutionLayerParameters(8, Shape(3, 3), 1, 1),
-            new ActivationLayerParameters(RELU),
+            new PoolLayerParameters(AVG, Shape(2, 2), 2, 0),
+            new ActivationLayerParameters(TANH),
             new ConvolutionLayerParameters(16, Shape(3, 3), 1, 1),
-            new PoolLayerParameters(MAX, Shape(2, 2), 2, 0)
+            new PoolLayerParameters(AVG, Shape(2, 2), 2, 0)
         },
         {
             HiddenLayerParameters(64, RELU),
