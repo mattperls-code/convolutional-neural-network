@@ -220,11 +220,73 @@ void cli_drawing()
 
     for (auto& channel : inputImage.dangerouslyGetData()) channel = ImageOperations::resize(channel, Shape(28, 28));
 
-    std::cout << "input dims: " << inputImage.getDimensions().toString() << std::endl;
-
     auto results = cnn.calculateFeedForwardOutput(inputImage);
 
     std::cout << "Output: " << results.toString() << std::endl << std::endl;
+};
+
+Tensor formatActivationMap(const Matrix& activationMap)
+{
+    Tensor output(Dimensions(3, activationMap.shape()));
+
+    for (int r = 0;r<activationMap.shape().rows;r++) {
+        for (int c = 0;c<activationMap.shape().cols;c++) {
+            auto pixelValue = activationMap.get(r, c);
+
+            if (pixelValue < 0) {
+                auto pixelR = -255 * pixelValue;
+
+                if (pixelR > 255) pixelR = 255;
+
+                output.set(r, c, 0, pixelR);
+            }
+            else {
+                auto pixelG = 255 * pixelValue;
+
+                if (pixelG > 255) pixelG = 255;
+
+                output.set(r, c, 1, pixelG);
+            }
+        }
+    }
+
+    return output;
+};
+
+void cli_analyze()
+{
+    std::cout << "Analysis Output Directory? ";
+
+    std::string analysisOutputDirectory;
+
+    std::cin >> analysisOutputDirectory;
+
+    std::cout << "Generating Analysis" << std::endl;
+
+    for (int i = 0;i<10;i++) {
+        auto digitImageFilePath = "results/drawings/digit" + std::to_string(i) + ".png";
+
+        auto digitImage = ImageOperations::rgbToGreyscale(ImageOperations::pngToTensor(digitImageFilePath));
+
+        for (auto& channel : digitImage.dangerouslyGetData()) channel = ImageOperations::resize(channel, Shape(28, 28));
+
+        cnn.calculateFeedForwardOutput(digitImage);
+
+        for (int j = 0;j<cnn.getFeatureLayerStates().size();j++) {
+            auto layerOutput = cnn.getFeatureLayerStates()[j]->output;
+
+            for (int k = 0;k<layerOutput.getDimensions().depth;k++) {
+                auto channelOutput = layerOutput.getMatrix(k);
+    
+                ImageOperations::tensorToPng(
+                    analysisOutputDirectory + "/layer" + std::to_string(j) + "/channel" + std::to_string(k) + "/digit" + std::to_string(i) + ".png",
+                    formatActivationMap(channelOutput)
+                );
+            }
+        }
+    }
+
+    std::cout << "Generated Analysis" << std::endl << std::endl;
 };
 
 int main()
@@ -236,7 +298,7 @@ int main()
     while (true) {
         std::string command;
 
-        std::cout << "Enter a command (LOAD, SAVE, TRAIN, TEST, DRAWING, EXIT): ";
+        std::cout << "Enter a command (LOAD, SAVE, TRAIN, TEST, DRAWING, ANALYZE, EXIT): ";
 
         std::cin >> command;
 
@@ -251,6 +313,8 @@ int main()
         else if (command == "TEST") cli_test();
 
         else if (command == "DRAWING") cli_drawing();
+
+        else if (command == "ANALYZE") cli_analyze();
 
         else if (command == "EXIT") break;
 
