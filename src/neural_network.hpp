@@ -118,11 +118,11 @@ class HiddenLayerParameters
             ar(this->nodeCount, this->unaryActivationFunction, this->weights, this->bias);
         };
 
-        static constexpr float defaultMinInitialWeight = -5.0;
-        static constexpr float defaultMaxInitialWeight = 5.0;
+        static constexpr float defaultMinInitialWeight = -0.5;
+        static constexpr float defaultMaxInitialWeight = 0.5;
 
-        static constexpr float defaultMinInitialBias = -5.0;
-        static constexpr float defaultMaxInitialBias = 5.0;
+        static constexpr float defaultMinInitialBias = -0.5;
+        static constexpr float defaultMaxInitialBias = 0.5;
 };
 
 class HiddenLayerLossPartials

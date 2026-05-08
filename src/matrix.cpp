@@ -129,6 +129,19 @@ std::string Matrix::toString() const
     return output;
 };
 
+int Matrix::rowMaxIndex(const Matrix& mat, int col)
+{
+    if (mat.rowCount() == 0) throw std::runtime_error("Matrix rowMaxIndex: no rows");
+
+    int maxIndex = 0;
+
+    for (int r = 0;r<mat.rowCount();r++) {
+        if (mat.get(r, col) > mat.get(maxIndex, col)) maxIndex = r;
+    }
+
+    return maxIndex;
+}
+
 Matrix Matrix::transpose(const Matrix& mat)
 {
     Matrix output(Shape(mat.cols, mat.rows));

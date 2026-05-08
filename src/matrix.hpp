@@ -63,6 +63,7 @@ class Matrix
             ar(this->rows, this->cols, this->data);
         };
 
+        static int rowMaxIndex(const Matrix& mat, int col);
         static Matrix transpose(const Matrix& mat);
         static Matrix flipped(const Matrix& mat);
         static Matrix add(const Matrix& matA, const Matrix& matB);

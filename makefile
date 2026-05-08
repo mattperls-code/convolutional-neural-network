@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -std=c++23 -Ilib -Isrc -Wall -Wextra -Wno-sign-compare -I/opt/homebrew/include
+CXXFLAGS := -std=c++23 -Ilib -Isrc -Wall -Wextra -Wno-sign-compare -I/opt/homebrew/include -O3 -march=native -ftree-vectorize
 
 SRC_DIR := src
 LIB_DIR := lib

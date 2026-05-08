@@ -19,10 +19,11 @@ void initModel()
         Dimensions(1, Shape(28, 28)),
         {
             new ConvolutionLayerParameters(8, Shape(3, 3), 1, 1),
-            new PoolLayerParameters(AVG, Shape(2, 2), 2, 0),
-            new ActivationLayerParameters(TANH),
+            new PoolLayerParameters(MAX, Shape(2, 2), 2, 0),
+            new ActivationLayerParameters(RELU),
             new ConvolutionLayerParameters(16, Shape(3, 3), 1, 1),
-            new PoolLayerParameters(AVG, Shape(2, 2), 2, 0)
+            new PoolLayerParameters(MAX, Shape(2, 2), 2, 0),
+            new ActivationLayerParameters(RELU)
         },
         {
             HiddenLayerParameters(64, RELU),
@@ -33,7 +34,7 @@ void initModel()
     );
 
     cnn.initializeRandomFeatureLayerParameters();
-    cnn.initializeRandomHiddenLayerParameters(-0.1, 0.1, -0.1, 0.1);
+    cnn.initializeRandomHiddenLayerParameters();
 };
 
 void cli_load()
@@ -78,11 +79,11 @@ void cli_train()
 {
     std::cout << "Starting Training" << std::endl;
 
-    std::cout << "How Many Cycles? ";
+    std::cout << "How Many Epochs? ";
 
-    unsigned int cycleCount;
+    unsigned int epochCount;
 
-    std::cin >> cycleCount;
+    std::cin >> epochCount;
 
     std::cout << std::endl;
 
@@ -131,21 +132,24 @@ void cli_train()
     
     std::cout << "Training Data Initialized" << std::endl;
 
-    int trainingBatchSize = 1200;
+    int trainingBatchSize = 32;
     int batches = 60000 / trainingBatchSize;
 
-    for (int i = 0;i<cycleCount;i++) {
-        int batchIndex = i % batches;
+    for (int i = 0;i<epochCount;i++) {
+        for (int j = 0;j<batches;j++) {
+            int batchIndex = j % batches;
 
-        auto batchLoss = cnn.batchTrain(
-            std::vector<TensorDataPoint>(
-                trainingData.begin() + trainingBatchSize * batchIndex,
-                trainingData.begin() + trainingBatchSize * (batchIndex + 1)
-            ),
-            0.1
-        );
+            auto batchLoss = cnn.batchTrain(
+                std::vector<TensorDataPoint>(
+                    trainingData.begin() + trainingBatchSize * batchIndex,
+                    trainingData.begin() + trainingBatchSize * (batchIndex + 1)
+                ),
+                0.01
+            );
 
-        std::cout << "Finished Cycle " << i << " with batch loss of " << batchLoss << std::endl;
+            std::cout << "Finished Cycle " << j << " out of " << batches << " with batch loss of " << batchLoss << std::endl;
+        }
+        std::cout << "Finished Epoch " << i << std::endl;
     }
 
     std::cout << "Finished Training" << std::endl << std::endl;
@@ -194,14 +198,23 @@ void cli_test()
 
     std::cout << "Testing Data Initialized" << std::endl;
 
-    std::cout << "Calculating Average Testing Data Loss" << std::endl;
+    std::cout << "Calculating Average Testing Data Accuracy and Loss" << std::endl;
 
+    auto averageAccuracy = 0.0;
     auto averageLoss = 0.0;
 
-    for (auto testDataPoint : testingData) averageLoss += cnn.calculateLoss(testDataPoint.input, testDataPoint.expectedOutput);
+    for (auto testDataPoint : testingData) {
+        auto predictedValues = cnn.calculateFeedForwardOutput(testDataPoint.input);
 
+        averageAccuracy += Matrix::rowMaxIndex(predictedValues, 0) == Matrix::rowMaxIndex(testDataPoint.expectedOutput, 0);
+
+        averageLoss += evaluateLossFunction(cnn.getNeuralNetwork().getLossFunction(), predictedValues, testDataPoint.expectedOutput);
+    }
+
+    averageAccuracy /= testingData.size();
     averageLoss /= testingData.size();
 
+    std::cout << "Average Testing Accuracy: " << averageAccuracy << std::endl;
     std::cout << "Average Testing Data Loss: " << averageLoss << std::endl << std::endl;
 
     return; // forces compiler to eval before early return

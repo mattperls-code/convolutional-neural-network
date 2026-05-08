@@ -20,7 +20,10 @@ ConvolutionalNeuralNetwork myCNN(
         new ConvolutionLayerParameters(16, Shape(3, 3), 1, 1),
 
         // max pool layer with window size 2x2 using stride=2, padding=0
-        new PoolLayerParameters(MAX, Shape(2, 2), 2, 0)
+        new PoolLayerParameters(MAX, Shape(2, 2), 2, 0),
+
+        // relu activation layer
+        new ActivationLayerParameters(RELU),
     },
     {
         HiddenLayerParameters(64, RELU), // hidden layer with 64 nodes using relu activation
@@ -37,8 +40,8 @@ ConvolutionalNeuralNetwork myCNN(
 
 myCNN.initializeRandomFeatureLayerParameters();
 
-// initial weight range -0.1 to 0.1, initial bias range -0.1 to 0.1
-myCNN.initializeRandomHiddenLayerParameters(-0.1, 0.1, -0.1, 0.1);
+// initial weight range -0.5 to 0.5, initial bias range -0.5 to 0.5
+myCNN.initializeRandomHiddenLayerParameters(-0.5, 0.5, -0.5, 0.5);
 ```
 
 ```cpp
@@ -67,7 +70,7 @@ trainingDataPoints.emplace_back(
 ```cpp
 /* Train Using A Single TensorDataPoint */
 
-float learningRate = 0.1;
+float learningRate = 0.01;
 
 myCNN.train(trainingDataPoints[0], learningRate);
 ```
@@ -115,39 +118,40 @@ float loss = myCNN.calculateLoss(input, expectedOutput);
 ConvolutionalNeuralNetwork cnn = ConvolutionalNeuralNetwork(
   Dimensions(1, Shape(28, 28)),
   {
-    new ConvolutionLayerParameters(8, Shape(3, 3), 1, 1),
-    new PoolLayerParameters(AVG, Shape(2, 2), 2, 0),
-    new ActivationLayerParameters(TANH),
-    new ConvolutionLayerParameters(16, Shape(3, 3), 1, 1),
-    new PoolLayerParameters(AVG, Shape(2, 2), 2, 0)
+      new ConvolutionLayerParameters(8, Shape(3, 3), 1, 1),
+      new PoolLayerParameters(MAX, Shape(2, 2), 2, 0),
+      new ActivationLayerParameters(RELU),
+      new ConvolutionLayerParameters(16, Shape(3, 3), 1, 1),
+      new PoolLayerParameters(MAX, Shape(2, 2), 2, 0),
+      new ActivationLayerParameters(RELU)
   },
   {
-    HiddenLayerParameters(64, RELU),
-    HiddenLayerParameters(10, LINEAR)
+      HiddenLayerParameters(64, RELU),
+      HiddenLayerParameters(10, LINEAR)
   },
   SOFTMAX,
   CATEGORICAL_CROSS_ENTROPY
 );
 
 cnn.initializeRandomFeatureLayerParameters();
-cnn.initializeRandomHiddenLayerParameters(-0.1, 0.1, -0.1, 0.1);
+cnn.initializeRandomHiddenLayerParameters(-0.5, 0.5, -0.5, 0.5);
 ```
 
 ### Training Progression
 
-The model was trained in randomly partitioned batches of 1200 images on a dataset of 60k images.
+The model was trained for 5 epochs on 60k images divided into minibatches of 32.
 
-The loss and accuracy were calculated against a separate testing dataset of 10k images.
+The accuracy and cross entropy loss were calculated against a separate testing dataset of 10k images.
 
 <table border="1">
   <tr>
-    <th>Epoch</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th>
+    <th>Epoch</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
   </tr>
   <tr>
-    <td>Loss</td><td>2.32982</td><td>0.401953</td><td>0.258774</td><td>0.21641</td><td>0.181177</td>
+    <td>Accuracy</td><td>0.0907</td><td>0.9203</td><td>0.9366</td><td>0.9483</td><td>0.9527</td><td>0.9541</td>
   </tr>
   <tr>
-    <td>Accuracy</td><td>0.0961</td><td>0.874</td><td>0.9189</td><td>0.9315</td><td>0.9442</td>
+    <td>Loss</td><td>4.28503</td><td>0.258557</td><td>0.200239</td><td>0.168822</td><td>0.151776</td><td>0.144484</td>
   </tr>
 </table>
 
@@ -174,7 +178,7 @@ Each channel roughly reflects a unique low level feature in the image (vertial t
 | Channel 6  | ![](results/analysis/layer0/channel6/digit0.png) | ![](results/analysis/layer0/channel6/digit1.png) | ![](results/analysis/layer0/channel6/digit2.png) | ![](results/analysis/layer0/channel6/digit3.png) | ![](results/analysis/layer0/channel6/digit4.png) | ![](results/analysis/layer0/channel6/digit5.png) | ![](results/analysis/layer0/channel6/digit6.png) | ![](results/analysis/layer0/channel6/digit7.png) | ![](results/analysis/layer0/channel6/digit8.png) | ![](results/analysis/layer0/channel6/digit9.png) |
 | Channel 7  | ![](results/analysis/layer0/channel7/digit0.png) | ![](results/analysis/layer0/channel7/digit1.png) | ![](results/analysis/layer0/channel7/digit2.png) | ![](results/analysis/layer0/channel7/digit3.png) | ![](results/analysis/layer0/channel7/digit4.png) | ![](results/analysis/layer0/channel7/digit5.png) | ![](results/analysis/layer0/channel7/digit6.png) | ![](results/analysis/layer0/channel7/digit7.png) | ![](results/analysis/layer0/channel7/digit8.png) | ![](results/analysis/layer0/channel7/digit9.png) |
 
-### Layer 2 (Average Pool)
+### Layer 2 (Max Pool)
 
 The channels retain most of the same feature information in a more compressed image.
 
@@ -189,7 +193,7 @@ The channels retain most of the same feature information in a more compressed im
 | Channel 6  | ![](results/analysis/layer1/channel6/digit0.png) | ![](results/analysis/layer1/channel6/digit1.png) | ![](results/analysis/layer1/channel6/digit2.png) | ![](results/analysis/layer1/channel6/digit3.png) | ![](results/analysis/layer1/channel6/digit4.png) | ![](results/analysis/layer1/channel6/digit5.png) | ![](results/analysis/layer1/channel6/digit6.png) | ![](results/analysis/layer1/channel6/digit7.png) | ![](results/analysis/layer1/channel6/digit8.png) | ![](results/analysis/layer1/channel6/digit9.png) |
 | Channel 7  | ![](results/analysis/layer1/channel7/digit0.png) | ![](results/analysis/layer1/channel7/digit1.png) | ![](results/analysis/layer1/channel7/digit2.png) | ![](results/analysis/layer1/channel7/digit3.png) | ![](results/analysis/layer1/channel7/digit4.png) | ![](results/analysis/layer1/channel7/digit5.png) | ![](results/analysis/layer1/channel7/digit6.png) | ![](results/analysis/layer1/channel7/digit7.png) | ![](results/analysis/layer1/channel7/digit8.png) | ![](results/analysis/layer1/channel7/digit9.png) |
 
-### Layer 3 (Tanh Activation)
+### Layer 3 (ReLU Activation)
 
 The activation layers learned to create a strong contrast between feature and non-feature regions.
 
@@ -227,7 +231,7 @@ Each channel captures a higher order feature in the image (extended lines, abstr
 | Channel 14 | ![](results/analysis/layer3/channel14/digit0.png) | ![](results/analysis/layer3/channel14/digit1.png) | ![](results/analysis/layer3/channel14/digit2.png) | ![](results/analysis/layer3/channel14/digit3.png) | ![](results/analysis/layer3/channel14/digit4.png) | ![](results/analysis/layer3/channel14/digit5.png) | ![](results/analysis/layer3/channel14/digit6.png) | ![](results/analysis/layer3/channel14/digit7.png) | ![](results/analysis/layer3/channel14/digit8.png) | ![](results/analysis/layer3/channel14/digit9.png) |
 | Channel 15 | ![](results/analysis/layer3/channel15/digit0.png) | ![](results/analysis/layer3/channel15/digit1.png) | ![](results/analysis/layer3/channel15/digit2.png) | ![](results/analysis/layer3/channel15/digit3.png) | ![](results/analysis/layer3/channel15/digit4.png) | ![](results/analysis/layer3/channel15/digit5.png) | ![](results/analysis/layer3/channel15/digit6.png) | ![](results/analysis/layer3/channel15/digit7.png) | ![](results/analysis/layer3/channel15/digit8.png) | ![](results/analysis/layer3/channel15/digit9.png) |
 
-### Layer 5 (Average Pool)
+### Layer 5 (Max Pool)
 
 The higher level feature data is compressed further and passed into the neural network.
 
